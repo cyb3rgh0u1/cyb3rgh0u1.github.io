@@ -16,7 +16,7 @@ timezone: Japan/Tokyo
 
 title: cyb3rgh0u1 # the main title
 
-tagline:  # it will display as the subtitle
+tagline:  A blog to guide you through CTF challenges. # it will display as the subtitle
 
 description: >- # used by seo meta and the atom feed
  A blog to guide you through CTF challenges.
