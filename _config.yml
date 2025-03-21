@@ -28,7 +28,7 @@ github:
   username: cyb3rgh0u1 # change to your GitHub username
 
 twitter:
-  username: cyb3rgh0u1 # change to your Twitter username
+  username: cyb3rgh0u1404 # change to your Twitter username
 
 social:
   # Change to your full name.
@@ -37,11 +37,11 @@ social:
   #email: example@domain.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
-    - https://twitter.com/cyb3rgh0u1 # change to your Twitter homepage
+    - https://twitter.com/cyb3rgh0u1404 # change to your Twitter homepage
     - https://github.com/cyb3rgh0u1 # change to your GitHub homepage
     # Uncomment below to add more social links
-    # - https://www.facebook.com/username
-    # - https://www.linkedin.com/in/username
+    - https://www.facebook.com/cyb3rgh0u1
+    - https://www.linkedin.com/in/cyb3rgh0u1
 
 # Site Verification Settings
 #webmaster_verifications:
