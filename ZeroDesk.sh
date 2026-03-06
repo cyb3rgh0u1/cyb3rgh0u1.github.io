@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# ── Re-exec under bash if invoked via zsh/sh ─────────────────────
+if [ -z "$BASH_VERSION" ]; then
+    exec bash "$0" "$@"
+fi
+
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║              ZeroDesk Ports — Installation Script                ║
 # ║                      by ZeroDesk Team                            ║
@@ -101,19 +106,23 @@ timed_prompt() {
     local _var="$1" prompt="$2" timeout="${3:-10}" default="${4:-1}"
     local _input="" _remaining=$timeout
 
+    # Always read from /dev/tty so curl|bash pipe doesn't feed script source into read
+    exec 3<>/dev/tty 2>/dev/null || exec 3<>/dev/stdin
+
     printf "  ${ARROW} %s ${DIM}[default: %s | %2ds]${RST} " \
-        "$prompt" "$default" "$_remaining"
+        "$prompt" "$default" "$_remaining" >/dev/tty
 
     while (( _remaining > 0 )); do
-        if read -t 1 -r _input 2>/dev/null; then
+        if read -t 1 -r _input <&3 2>/dev/null; then
             break
         fi
         (( _remaining-- ))
         printf "\r  ${ARROW} %s ${DIM}[default: %s | %2ds]${RST} " \
-            "$prompt" "$default" "$_remaining"
+            "$prompt" "$default" "$_remaining" >/dev/tty
     done
 
-    printf "\r\033[K"
+    exec 3>&-
+    printf "\r\033[K" >/dev/tty
 
     local _result="${_input:-$default}"
     printf "  ${CHECK} Selected: ${YLW}%s${RST}\n" "$_result"
@@ -277,9 +286,8 @@ next_step
 
 section "Wallpaper"
 
-shopt -s nullglob
-walls=("$rootDir"/Wallpaper/*.png "$rootDir"/Wallpaper/*.jpg \
-       "$rootDir"/Wallpaper/*.jpeg "$rootDir"/Wallpaper/*.webp)
+# Collect wallpapers safely (no shopt needed)
+mapfile -t walls < <(find "$rootDir/Wallpaper" -maxdepth 1     \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \)     | sort)
 
 if [[ ${#walls[@]} -eq 0 ]]; then
     echo -e "  ${CROSS} ${RED}No wallpapers found in $rootDir/Wallpaper/${RST}"
