@@ -1,8 +1,16 @@
 #!/bin/bash
 
+# ── Re-exec under bash if invoked via zsh/sh ─────────────────────
+if [ -z "$BASH_VERSION" ]; then
+    exec bash "$0" "$@"
+fi
+
+# ── Ensure stdin is a real terminal ──────────────────────────────
+[[ ! -t 0 && -e /dev/tty ]] && exec < /dev/tty
+
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║              ZeroDesk Ports — Installation Script                ║
-# ║                      by ZeroDesk Team                            ║
+# ║              ZeroDesk Ports — Installation Script               ║
+# ║                      by ZeroDesk Team                           ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
 rootDir="$HOME/ZeroDesk-Ports"
@@ -105,7 +113,7 @@ timed_prompt() {
         "$prompt" "$default" "$_remaining"
 
     while (( _remaining > 0 )); do
-        if read -t 1 -r _input 2>/dev/null; then
+        if read -t 1 -r _input; then
             break
         fi
         (( _remaining-- ))
@@ -164,16 +172,19 @@ TAGLINES=(
 tagline="${TAGLINES[$((RANDOM % ${#TAGLINES[@]}))]}"
 
 BANNERS=(
-"   ███████╗███████╗██████╗  ██████╗  ██████╗ ███████╗███████╗██╗  ██╗
-   ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗  ██╔══██╗██╔════╝██╔════╝██║ ██╔╝
-     ███╔╝ █████╗  ██████╔╝██║   ██║  ██║  ██║█████╗  ███████╗█████╔╝
-    ███╔╝  ██╔══╝  ██╔══██╗██║   ██║  ██║  ██║██╔══╝  ╚════██║██╔═██╗
-   ███████╗███████╗██║  ██║╚██████╔╝  ██████╔╝███████╗███████║██║  ██╗
-   ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝   ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝"
-
-"   ____                 ____          _ __ 
-   /_  / ___ _______  __/ __ \___  ___/ / /
-    / /_/ -_) __/ _ \/ / / / / -_|_-</ ' /
+"   ███████╗███████╗██████╗  ██████╗ ██████╗ ███████╗███████╗██╗  ██╗
+   ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗██╔══██╗██╔════╝██╔════╝██║ ██╔╝
+     ███╔╝ █████╗  ██████╔╝██║   ██║██║  ██║█████╗  ███████╗█████╔╝
+    ███╔╝  ██╔══╝  ██╔══██╗██║   ██║██║  ██║██╔══╝  ╚════██║██╔═██╗
+   ███████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗███████║██║  ██╗
+   ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝"
+"    ____              ____            __  
+   /_  / ___ ______  / __ \___  ___ / /__
+    / /_/ -_) __/ /_/ /_/ / -_|_-</ '_/
+   /___/\__/_/  \____/____/\__/___/_/\_\ "
+"    ____                 ____            __
+   /_  / ___ _______  __/ __ \___  ___ / /__
+    / /_/ -_) __/ _ \/ / / / / -_|_-</ '_/
    /___/\__/_/  \___/_/_____/\__/___/_/\_\  "
 )
 banner="${BANNERS[$((RANDOM % ${#BANNERS[@]}))]}"
@@ -277,9 +288,8 @@ next_step
 
 section "Wallpaper"
 
-shopt -s nullglob
-walls=("$rootDir"/Wallpaper/*.png "$rootDir"/Wallpaper/*.jpg \
-       "$rootDir"/Wallpaper/*.jpeg "$rootDir"/Wallpaper/*.webp)
+# Collect wallpapers safely (no shopt needed)
+mapfile -t walls < <(find "$rootDir/Wallpaper" -maxdepth 1     \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \)     | sort)
 
 if [[ ${#walls[@]} -eq 0 ]]; then
     echo -e "  ${CROSS} ${RED}No wallpapers found in $rootDir/Wallpaper/${RST}"
@@ -584,7 +594,7 @@ printf "%s\n" "$RST"
 
 echo
 sleep 0.3
-type_text "  ✦  ZeroDesk Is Ready. Enjoy Your Desktop.  ✦" "$YLW"
+type_text "  ✦  ZeroDesk is ready. Enjoy your desktop.  ✦" "$YLW"
 echo
 echo -e "  ${DIM}State saved to: ${BLU}${stateFile}${RST}"
 echo -e "  ${DIM}Re-run anytime — unchanged components are skipped.${RST}"
