@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# ── Re-exec under bash if invoked via zsh/sh ─────────────────────
+# ── Re-exec under bash if needed ─────────────────────────────────
 if [ -z "$BASH_VERSION" ]; then
     exec bash "$0" "$@"
 fi
@@ -22,7 +22,7 @@ echo
 
 if wget -q --show-progress -O "$INSTALLER" "$INSTALLER_URL"; then
     echo
-    echo -e "${GRN}  ✔ Downloaded successfully.${RST}"
+    echo -e "${GRN}  ✔ Downloaded.${RST}"
 else
     echo -e "${RED}  ✘ Download failed. Check your connection.${RST}"
     exit 1
@@ -30,18 +30,23 @@ fi
 
 chmod +x "$INSTALLER"
 
-echo -e "${DIM}  Launching installer...${RST}"
+echo -e "${DIM}  Launching installer in a fresh terminal session...${RST}"
 echo
 
-# Run with a clean environment, preserving only essentials
-exec env -i \
-    HOME="$HOME" \
-    USER="$USER" \
-    LOGNAME="$LOGNAME" \
-    PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-    TERM="${TERM:-xterm-256color}" \
-    LANG="${LANG:-en_US.UTF-8}" \
-    DISPLAY="${DISPLAY:-}" \
-    DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
-    XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
-    bash "$INSTALLER"
+# ── The core fix for curl|bash interactivity ─────────────────────
+# We can't reliably get interactive input while stdin is a pipe.
+# Setsid + bash with stdin forced from /dev/tty creates a fully
+# detached session with a real controlling terminal.
+exec setsid bash --norc --noprofile -c "
+    exec < /dev/tty
+    export HOME='$HOME'
+    export USER='$USER'
+    export LOGNAME='$LOGNAME'
+    export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    export TERM='${TERM:-xterm-256color}'
+    export LANG='${LANG:-en_US.UTF-8}'
+    export DISPLAY='${DISPLAY:-}'
+    export DBUS_SESSION_BUS_ADDRESS='${DBUS_SESSION_BUS_ADDRESS:-}'
+    export XDG_RUNTIME_DIR='${XDG_RUNTIME_DIR:-}'
+    bash '$INSTALLER'
+"
