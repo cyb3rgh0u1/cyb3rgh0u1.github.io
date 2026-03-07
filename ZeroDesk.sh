@@ -9,11 +9,11 @@ rootDir="$HOME/ZeroDesk-Ports"
 stateFile="$HOME/.config/zerodesk/install.state"
 
 # ── Colors ────────────────────────────────────────────────────────
-GRN=$(printf '\033[38;2;183;212;49m')   # #B7D431
-YLW=$(printf '\033[38;2;255;174;1m')    # #FFAE01
-RED=$(printf '\033[38;2;230;126;128m')  # #E67E80
-BLU=$(printf '\033[38;2;100;180;255m')  # accent blue
-PRP=$(printf '\033[38;2;180;140;255m')  # soft purple accent
+GRN=$(printf '\033[38;2;183;212;49m')
+YLW=$(printf '\033[38;2;255;174;1m')
+RED=$(printf '\033[38;2;230;126;128m')
+BLU=$(printf '\033[38;2;100;180;255m')
+PRP=$(printf '\033[38;2;180;140;255m')
 DIM=$(printf '\033[2m')
 BLD=$(printf '\033[1m')
 RST=$(printf '\033[0m')
@@ -27,14 +27,13 @@ SKIP="${BLU}⟳${RST}"
 STAR="${YLW}✦${RST}"
 
 # ── Summary tracking ──────────────────────────────────────────────
-declare -A SUMMARY   # key → chosen value
-declare -A STATUS    # key → "installed" | "skipped" | "missing"
+declare -A SUMMARY
+declare -A STATUS
 
 # ══════════════════════════════════════════════════════════════════
 # UTILITIES
 # ══════════════════════════════════════════════════════════════════
 
-# Typewriter effect
 type_text() {
     local text="$1" color="${2:-$RST}"
     printf "%s" "$color"
@@ -45,7 +44,6 @@ type_text() {
     printf "%s\n" "$RST"
 }
 
-# Fade-in a block of lines (reveal line by line with delay)
 fade_in() {
     while IFS= read -r line; do
         echo -e "$line"
@@ -53,7 +51,6 @@ fade_in() {
     done <<< "$1"
 }
 
-# Spinner for long operations
 spinner() {
     local pid=$1 msg="${2:-Working...}"
     local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
@@ -66,7 +63,6 @@ spinner() {
     printf "\r\033[K"
 }
 
-# Section header with animated reveal
 section() {
     local title="$1"
     local width=60
@@ -82,7 +78,6 @@ section() {
     sleep 0.1
 }
 
-# Progress bar
 progress_bar() {
     local current=$1 total=$2 width=40
     local filled=$(( current * width / total ))
@@ -94,9 +89,7 @@ progress_bar() {
     printf "${RST}${DIM}]${RST} ${YLW}%d/%d${RST}  ${DIM}steps done${RST}\n" "$current" "$total"
 }
 
-# Live countdown timer prompt
-# Usage: timed_prompt <var_name> <prompt> <timeout> <default>
-# Writes result into the variable named by $1 (avoids subshell)
+# Live countdown prompt — writes result into named variable (avoids subshell)
 timed_prompt() {
     local _var="$1" prompt="$2" timeout="${3:-10}" default="${4:-1}"
     local _input="" _remaining=$timeout
@@ -114,13 +107,11 @@ timed_prompt() {
     done
 
     printf "\r\033[K"
-
     local _result="${_input:-$default}"
     printf "  ${CHECK} Selected: ${YLW}%s${RST}\n" "$_result"
     printf -v "$_var" '%s' "$_result"
 }
 
-# Save state
 save_state() {
     local key="$1" value="$2"
     mkdir -p "$(dirname "$stateFile")"
@@ -129,13 +120,11 @@ save_state() {
     mv "${stateFile}.tmp" "$stateFile"
 }
 
-# Load state
 load_state() {
     local key="$1"
     grep "^${key}=" "$stateFile" 2>/dev/null | cut -d= -f2-
 }
 
-# Check if component was already installed with same value
 already_installed() {
     local key="$1" value="$2"
     local stored
@@ -143,13 +132,27 @@ already_installed() {
     [[ "$stored" == "$value" ]]
 }
 
-# Print skipped message
+remove_state() {
+    local key="$1"
+    grep -v "^${key}=" "$stateFile" > "${stateFile}.tmp" 2>/dev/null || true
+    mv "${stateFile}.tmp" "$stateFile"
+}
+
 skipped() {
     echo -e "  ${SKIP} ${DIM}Already installed (${1}). Skipping...${RST}"
 }
 
+# Resolve the Firefox default profile directory (returns first match)
+get_firefox_profile_dir() {
+    local profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
+    [[ -f "$profiles_ini" ]] || return 1
+    local path
+    path=$(grep '^Path=' "$profiles_ini" | head -n1 | cut -d= -f2-)
+    [[ -n "$path" ]] && echo "$HOME/.mozilla/firefox/$path"
+}
+
 # ══════════════════════════════════════════════════════════════════
-# BANNER — random tagline on each launch
+# BANNER
 # ══════════════════════════════════════════════════════════════════
 
 TAGLINES=(
@@ -164,7 +167,7 @@ TAGLINES=(
 tagline="${TAGLINES[$((RANDOM % ${#TAGLINES[@]}))]}"
 
 BANNERS=(
-"   ███████╗███████╗██████╗  ██████╗  ██████╗ ███████╗███████╗██╗  ██╗
+"   ███████╗███████╗██████╗ ██████╗   ██████╗ ███████╗███████╗██╗  ██╗
    ╚══███╔╝██╔════╝██╔══██╗██╔═══██╗  ██╔══██╗██╔════╝██╔════╝██║ ██╔╝
      ███╔╝ █████╗  ██████╔╝██║   ██║  ██║  ██║█████╗  ███████╗█████╔╝
     ███╔╝  ██╔══╝  ██╔══██╗██║   ██║  ██║  ██║██╔══╝  ╚════██║██╔═██╗
@@ -188,7 +191,149 @@ printf "  %s%s%s  %s│%s  %s%s%s\n" \
     "$DIM$GRN" "$tagline" "$RST"
 echo
 
-# Detect re-run
+# ══════════════════════════════════════════════════════════════════
+# MODE SELECTION — install or uninstall
+# ══════════════════════════════════════════════════════════════════
+
+MODE="install"
+if [[ "${1:-}" == "--uninstall" ]]; then
+    MODE="uninstall"
+fi
+
+if [[ "$MODE" == "uninstall" ]]; then
+
+    section "Uninstalling ZeroDesk Ports"
+    fade_in "  ${RED}This will remove all ZeroDesk themes and restore system defaults.${RST}"
+    echo
+    timed_prompt confirm "Continue with uninstall? (y/n)" 15 "y"
+    [[ "${confirm,,}" == "y" ]] || { echo -e "  ${SKIP} Uninstall cancelled."; exit 0; }
+
+    echo
+
+    # ── Terminal ──────────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting terminal theme..."
+    profile=$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d "'" 2>/dev/null)
+    if [[ -n "$profile" ]]; then
+        dconf reset -f "/org/gnome/terminal/legacy/profiles:/:${profile}/"
+        echo -e "  ${CHECK} Terminal profile reset."
+    fi
+    remove_state "terminal"
+
+    # ── Wallpaper ─────────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting wallpaper..."
+    gsettings reset org.gnome.desktop.background picture-uri      2>/dev/null
+    gsettings reset org.gnome.desktop.background picture-uri-dark 2>/dev/null
+    echo -e "  ${CHECK} Wallpaper reset."
+    remove_state "wallpaper"
+
+    # ── Shell theme ───────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting shell theme..."
+    gsettings reset org.gnome.shell.extensions.user-theme name 2>/dev/null
+    rm -rf "$HOME/.themes/ZeroDesk-Dark" "$HOME/.themes/ZeroDesk-Dark-Soft"
+    echo -e "  ${CHECK} Shell theme removed."
+    remove_state "shell_theme"
+
+    # ── GTK theme ─────────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting GTK theme..."
+    gsettings reset org.gnome.desktop.interface gtk-theme 2>/dev/null
+    echo -e "  ${CHECK} GTK theme reset."
+    remove_state "gtk_theme"
+
+    # ── Icons ─────────────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting icon theme..."
+    gsettings reset org.gnome.desktop.interface icon-theme 2>/dev/null
+    rm -rf "$HOME/.icons/ZeroDesk-Dark"
+    echo -e "  ${CHECK} Icon theme removed."
+    remove_state "icon_theme"
+
+    # ── Cursor ────────────────────────────────────────────────────
+    echo -e "  ${DOT} Resetting cursor theme..."
+    gsettings reset org.gnome.desktop.interface cursor-theme 2>/dev/null
+    gsettings reset org.gnome.desktop.interface cursor-size  2>/dev/null
+    rm -rf "$HOME/.icons/Ghoul-Cursor" \
+           "$HOME/.icons/ZeroDesk-Cursor" \
+           "$HOME/.icons/ZeroDesk-Cursor-Light"
+    echo -e "  ${CHECK} Cursor theme removed."
+    remove_state "cursor_theme"
+
+    # ── Vesktop ───────────────────────────────────────────────────
+    vesktop_dest="$HOME/.config/vesktop/settings/quickCss.css"
+    if [[ -f "$vesktop_dest" ]]; then
+        rm -f "$vesktop_dest"
+        echo -e "  ${CHECK} Vesktop theme removed."
+    else
+        echo -e "  ${SKIP} ${DIM}Vesktop theme not found. Skipping.${RST}"
+    fi
+    remove_state "vesktop_css"
+
+    # ── OBS Studio ────────────────────────────────────────────────
+    obs_dest="$HOME/.config/obs-studio/themes/ZeroDesk.ovt"
+    if [[ -f "$obs_dest" ]]; then
+        rm -f "$obs_dest"
+        echo -e "  ${CHECK} OBS Studio theme removed."
+    else
+        echo -e "  ${SKIP} ${DIM}OBS theme not found. Skipping.${RST}"
+    fi
+    remove_state "obs_theme"
+
+    # ── Obsidian ──────────────────────────────────────────────────
+    obsidian_theme_dir="$HOME/Documents/Obsidian Vault/.obsidian/themes/ZeroDesk"
+    if [[ -d "$obsidian_theme_dir" ]]; then
+        rm -rf "$obsidian_theme_dir"
+        echo -e "  ${CHECK} Obsidian theme removed."
+    else
+        echo -e "  ${SKIP} ${DIM}Obsidian theme not found. Skipping.${RST}"
+    fi
+    remove_state "obsidian_theme"
+
+    # ── Sublime Text ──────────────────────────────────────────────
+    sublime_pkg="$HOME/.config/sublime-text/Packages/ZeroDesk"
+    if [[ -d "$sublime_pkg" ]]; then
+        rm -rf "$sublime_pkg"
+        echo -e "  ${CHECK} Sublime Text theme removed."
+    else
+        echo -e "  ${SKIP} ${DIM}Sublime Text theme not found. Skipping.${RST}"
+    fi
+    remove_state "sublime_theme"
+
+    # ── Firefox ───────────────────────────────────────────────────
+    firefox_profile_dir=$(get_firefox_profile_dir)
+    if [[ -n "$firefox_profile_dir" ]]; then
+        rm -rf "${firefox_profile_dir}/chrome"
+        # Remove the pref line from user.js if present
+        userjs="${firefox_profile_dir}/user.js"
+        if [[ -f "$userjs" ]]; then
+            grep -v 'toolkit.legacyUserProfileCustomizations.stylesheets' "$userjs" \
+                > "${userjs}.tmp" && mv "${userjs}.tmp" "$userjs"
+        fi
+        echo -e "  ${CHECK} Firefox theme removed."
+    else
+        echo -e "  ${SKIP} ${DIM}Firefox profile not found. Skipping.${RST}"
+    fi
+    remove_state "firefox"
+
+    # ── State file ────────────────────────────────────────────────
+    echo
+    timed_prompt rm_state "Remove state file and downloaded assets? (y/n)" 10 "n"
+    if [[ "${rm_state,,}" == "y" ]]; then
+        rm -f "$stateFile"
+        rm -rf "$rootDir"
+        echo -e "  ${CHECK} State file and ZeroDesk-Ports directory removed."
+    fi
+
+    echo
+    type_text "  ✦  ZeroDesk uninstalled. Your desktop has been restored.  ✦" "$RED"
+    echo
+    printf "%s" "$GRN"
+    printf '═%.0s' $(seq 1 60)
+    printf "%s\n\n" "$RST"
+    exit 0
+fi
+
+# ══════════════════════════════════════════════════════════════════
+# INSTALL MODE
+# ══════════════════════════════════════════════════════════════════
+
 if [[ -f "$stateFile" ]]; then
     fade_in "  ${BLU}ℹ${RST}  ${DIM}Previous installation state detected.${RST}
   ${BLU}ℹ${RST}  ${DIM}Unchanged components will be skipped automatically.${RST}"
@@ -232,7 +377,6 @@ else
     fi
 fi
 
-
 # ══════════════════════════════════════════════════════════════════
 # STEP COUNTER
 # ══════════════════════════════════════════════════════════════════
@@ -261,7 +405,8 @@ if already_installed "terminal" "$profile"; then
     STATUS[terminal]="skipped"
 else
     fade_in "  ${DOT} Applying theme to profile: ${YLW}${profile}${RST}"
-    dconf load /org/gnome/terminal/legacy/profiles:/:$profile/ < "$rootDir/Terminal/ZeroDesk.dconf"
+    dconf load "/org/gnome/terminal/legacy/profiles:/:${profile}/" \
+        < "$rootDir/Terminal/ZeroDesk.dconf"
     save_state "terminal" "$profile"
     sleep 0.2
     echo -e "  ${CHECK} ${GRN}Terminal theme applied successfully.${RST}"
@@ -276,6 +421,10 @@ next_step
 # ══════════════════════════════════════════════════════════════════
 
 section "Wallpaper"
+
+mkdir -p "$HOME/.local/share/backgrounds"
+# FIX: unquoted glob so it actually expands
+cp -r "$rootDir"/Wallpaper/* "$HOME/.local/share/backgrounds/" 2>/dev/null
 
 shopt -s nullglob
 walls=("$rootDir"/Wallpaper/*.png "$rootDir"/Wallpaper/*.jpg \
@@ -452,7 +601,8 @@ vesktop_dest="$HOME/.config/vesktop/settings/quickCss.css"
 
 if ! command -v vesktop >/dev/null 2>&1; then
     echo -e "  ${CROSS} ${DIM}Vesktop not installed. Skipping.${RST}"
-    SUMMARY[vesktop]="not installed"; STATUS[vesktop]="missing"
+    SUMMARY[vesktop]="not installed"
+    STATUS[vesktop]="missing"
 else
     src_hash=$(md5sum "$vesktop_css" 2>/dev/null | awk '{print $1}')
     if already_installed "vesktop_css" "$src_hash"; then
@@ -474,7 +624,8 @@ obs_dest="$HOME/.config/obs-studio/themes/ZeroDesk.ovt"
 
 if ! command -v obs >/dev/null 2>&1; then
     echo -e "  ${CROSS} ${DIM}OBS Studio not found. Skipping.${RST}"
-    SUMMARY[obs]="not installed"; STATUS[obs]="missing"
+    SUMMARY[obs]="not installed"
+    STATUS[obs]="missing"
 else
     src_hash=$(md5sum "$obs_src" 2>/dev/null | awk '{print $1}')
     if already_installed "obs_theme" "$src_hash"; then
@@ -493,7 +644,8 @@ fi
 # ── Obsidian ──────────────────────────────────────────────────
 if ! command -v obsidian >/dev/null 2>&1; then
     echo -e "  ${CROSS} ${DIM}Obsidian not installed. Skipping.${RST}"
-    SUMMARY[obsidian]="not installed"; STATUS[obsidian]="missing"
+    SUMMARY[obsidian]="not installed"
+    STATUS[obsidian]="missing"
 else
     if already_installed "obsidian_theme" "ZeroDesk"; then
         skipped "Obsidian"
@@ -511,7 +663,8 @@ fi
 # ── Sublime Text ──────────────────────────────────────────────
 if ! command -v subl >/dev/null 2>&1; then
     echo -e "  ${CROSS} ${DIM}Sublime Text not installed. Skipping.${RST}"
-    SUMMARY[sublime]="not installed"; STATUS[sublime]="missing"
+    SUMMARY[sublime]="not installed"
+    STATUS[sublime]="missing"
 else
     if already_installed "sublime_theme" "ZeroDesk"; then
         skipped "Sublime Text"
@@ -524,6 +677,49 @@ else
         STATUS[sublime]="installed"
     fi
     SUMMARY[sublime]="ZeroDesk"
+fi
+
+# ── Firefox ───────────────────────────────────────────────────
+# FIX: Proper profile detection using helper function.
+# FIX: Removed stray literal text and broken glob in destination path.
+# FIX: user.js pref loop now uses process substitution to avoid subshell variable loss.
+if ! command -v firefox >/dev/null 2>&1; then
+    echo -e "  ${CROSS} ${DIM}Firefox not installed. Skipping.${RST}"
+    SUMMARY[firefox]="not installed"
+    STATUS[firefox]="missing"
+else
+    firefox_profile_dir=$(get_firefox_profile_dir)
+
+    if [[ -z "$firefox_profile_dir" ]]; then
+        echo -e "  ${CROSS} ${RED}Firefox profile not found. Skipping.${RST}"
+        SUMMARY[firefox]="no profile"
+        STATUS[firefox]="missing"
+    elif already_installed "firefox" "ZeroDesk"; then
+        skipped "Firefox"
+        STATUS[firefox]="skipped"
+        SUMMARY[firefox]="ZeroDesk"
+    else
+        # Enable legacy userChrome support in every profile
+        profiles_ini="$HOME/.mozilla/firefox/profiles.ini"
+        pref='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+
+        while IFS= read -r path; do
+            profile_dir="$HOME/.mozilla/firefox/$path"
+            userjs="${profile_dir}/user.js"
+            # Only add if not already present
+            if ! grep -qF 'toolkit.legacyUserProfileCustomizations.stylesheets' "$userjs" 2>/dev/null; then
+                echo "$pref" >> "$userjs"
+                echo -e "  ${DOT} Updated: ${DIM}${userjs}${RST}"
+            fi
+        done < <(grep '^Path=' "$profiles_ini" | cut -d= -f2-)
+
+        # Copy chrome assets into the default profile
+        cp -r "$rootDir/Firefox/chrome" "${firefox_profile_dir}/"
+        save_state "firefox" "ZeroDesk"
+        echo -e "  ${CHECK} ${GRN}Firefox theme installed.${RST}"
+        STATUS[firefox]="installed"
+        SUMMARY[firefox]="ZeroDesk"
+    fi
 fi
 
 next_step
@@ -542,7 +738,6 @@ printf "%s" "$PRP"
 printf '─%.0s' $(seq 1 60)
 printf "%s\n\n" "$RST"
 
-# Map display labels
 declare -A LABELS=(
     [terminal]="Terminal Theme"
     [wallpaper]="Wallpaper"
@@ -554,8 +749,9 @@ declare -A LABELS=(
     [obs]="OBS Studio"
     [obsidian]="Obsidian"
     [sublime]="Sublime Text"
+    [firefox]="Firefox"
 )
-order=(terminal wallpaper shell gtk icons cursor vesktop obs obsidian sublime)
+order=(terminal wallpaper shell gtk icons cursor vesktop obs obsidian sublime firefox)
 
 for key in "${order[@]}"; do
     label="${LABELS[$key]}"
@@ -588,6 +784,7 @@ type_text "  ✦  ZeroDesk Is Ready. Enjoy Your Desktop.  ✦" "$YLW"
 echo
 echo -e "  ${DIM}State saved to: ${BLU}${stateFile}${RST}"
 echo -e "  ${DIM}Re-run anytime — unchanged components are skipped.${RST}"
+echo -e "  ${DIM}To uninstall, run: ${BLU}./install.sh --uninstall${RST}"
 echo
 printf "%s" "$GRN"
 printf '═%.0s' $(seq 1 60)
